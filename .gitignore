@@ -7,3 +7,9 @@ node_modules/
 *.egg-info/
 dist/
 build/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.idea/
+*.log

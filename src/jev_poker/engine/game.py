@@ -66,12 +66,15 @@ class Game:
         self.to_act: int | None = None
         self._deck: Deck | None = None
         self._winners: list[dict[str, int]] = []
+        self.hand_number = 0
+        self.action_log: list[dict] = []
 
     def new_hand(self) -> None:
         if self._started and not self.hand_over:
             raise RuntimeError("hand still in progress")
         if sum(player.stack > 0 for player in self.players) < 2:
             raise RuntimeError("at least two players need chips")
+        self.hand_number += 1
         self.button = 0 if not self._started else (self.button + 1) % SEATS
         self._started = True
         self.hand_over = False
@@ -118,6 +121,8 @@ class Game:
         if chosen not in self._options(self.players[seat]):
             raise ValueError(f"{chosen.value} is not legal")
         player = self.players[seat]
+        to_call = max(0, self.current_bet - player.street_commit)
+        committed_before = player.total_commit
         if chosen is Action.FOLD:
             player.folded = True
             player.acted = True
@@ -131,6 +136,18 @@ class Game:
             self._raise_sized(player, half=True)
         elif chosen is Action.RAISE_POT:
             self._raise_sized(player, half=False)
+        self.action_log.append(
+            {
+                "hand_id": self.hand_number,
+                "street": self.street,
+                "seat": seat,
+                "position": _POSITIONS[(seat - self.button) % SEATS],
+                "action": chosen.value,
+                "amount": player.total_commit - committed_before,
+                "faced_bet": to_call > 0,
+                "to_call": to_call,
+            }
+        )
         self._proceed(seat)
 
     def public_state(self) -> dict:
