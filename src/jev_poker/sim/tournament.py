@@ -43,24 +43,44 @@ def play_tournament(
     client=None,
     iterations: int = 300,
     runs_root: Path | str = "runs",
+    run_dir: Path | str | None = None,
+    on_event=None,
+    between_hands=None,
 ) -> dict:
     """Play up to ``hands`` hands, or stop when only one seat still has chips.
 
-    Writes ``runs/<timestamp>/hands.jsonl`` under ``runs_root``.
+    Writes ``runs/<timestamp>/hands.jsonl`` under ``runs_root``. ``on_event``
+    receives street, decision, showdown, and finished payloads for a spectator.
+    ``between_hands`` runs after a hand when another hand is still going to be dealt.
     """
     if hands < 1:
         raise ValueError("hands must be at least 1")
     table = Game(seed=seed)
     agents = _agents(client)
     rng = random.Random(seed)
-    path = _jsonl_path(Path(runs_root))
+    path = _log_path(Path(runs_root), Path(run_dir) if run_dir is not None else None)
     played: list[dict] = []
     with path.open("w", encoding="utf-8") as handle:
         while len(played) < hands and _seats_with_chips(table) >= 2:
-            record = _play_hand(table, agents, seed=seed, iterations=iterations, rng=rng)
+            record = _play_hand(
+                table,
+                agents,
+                seed=seed,
+                iterations=iterations,
+                rng=rng,
+                on_event=on_event,
+            )
             played.append(record)
             handle.write(json.dumps(record) + "\n")
+            handle.flush()
+            another = len(played) < hands and _seats_with_chips(table) >= 2
+            if another and between_hands is not None:
+                between_hands()
     summary = _summary(played, path)
+    _emit(
+        on_event,
+        {"type": "finished", "id": path.parent.name, "summary": summary},
+    )
     return {"hands": played, "summary": summary, "path": path}
 
 
@@ -99,10 +119,13 @@ def _play_hand(
     seed: int,
     iterations: int,
     rng: random.Random,
+    on_event=None,
 ) -> dict:
     if len(agents) != SEATS:
         raise ValueError("the table needs one agent per seat")
     game.new_hand()
+    _emit(on_event, _street_event(game))
+    seen_board = len(game.board)
     actions: list[dict] = []
     for _ in range(_ACTION_LIMIT):
         if game.is_hand_over():
@@ -116,12 +139,25 @@ def _play_hand(
             decision["action"] = legal[0]
             decision["source"] = "math_error"
         game.apply(seat, decision["action"])
-        actions.append(_public_decision(decision))
+        logged = _public_decision(decision)
+        actions.append(logged)
+        _emit(
+            on_event,
+            {
+                "type": "decision",
+                "hand_number": game.hand_number,
+                "decision": logged,
+                "table": _spectator_table(game),
+            },
+        )
+        if len(game.board) != seen_board:
+            seen_board = len(game.board)
+            _emit(on_event, _street_event(game))
     else:
         raise RuntimeError("hand exceeded the action limit")
     if not game.is_hand_over():
         raise RuntimeError("hand did not finish")
-    return {
+    record = {
         "seed": seed,
         "hand_number": game.hand_number,
         "board": list(game.board),
@@ -131,6 +167,56 @@ def _play_hand(
         "stacks": [player.stack for player in game.players],
         "cost_usd": sum(action["cost_usd"] for action in actions),
     }
+    if game.street == "showdown":
+        _emit(
+            on_event,
+            {
+                "type": "showdown",
+                "hand_number": game.hand_number,
+                "board": record["board"],
+                "showdown_hole_cards": record["showdown_hole_cards"],
+                "pot_results": record["pot_results"],
+                "stacks": record["stacks"],
+                "table": _spectator_table(game),
+            },
+        )
+    return record
+
+
+def _emit(on_event, event: dict) -> None:
+    if on_event is not None:
+        on_event(event)
+
+
+def _spectator_table(game: Game) -> dict:
+    """Public table plus every seat's hole cards, for the local spectator only."""
+    public = game.public_state()
+    rows = {row["seat"]: row for row in public["players"]}
+    for player in game.players:
+        persona = SEAT_PERSONAS[player.seat]
+        row = rows[player.seat]
+        row["hole_cards"] = list(player.hole)
+        row["persona_id"] = persona.id
+        row["display_name"] = persona.display_name
+        row["color"] = persona.color
+    return public
+
+
+def _street_event(game: Game) -> dict:
+    return {
+        "type": "street",
+        "hand_number": game.hand_number,
+        "street": game.street,
+        "board": list(game.board),
+        "table": _spectator_table(game),
+    }
+
+
+def _log_path(runs_root: Path, run_dir: Path | None) -> Path:
+    if run_dir is None:
+        return _jsonl_path(runs_root)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir / "hands.jsonl"
 
 
 def _decide(agent: JevAgent, game: Game, seat: int, iterations: int, rng: random.Random) -> dict:
