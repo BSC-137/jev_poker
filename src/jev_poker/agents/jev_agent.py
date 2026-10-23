@@ -114,14 +114,11 @@ class JevAgent:
             judged,
             build_action_questions(self.persona, state["legal_actions"]),
         )
-        choice, confidence = _choice_and_confidence(action_result.answers.get("action"))
-        legal = state["legal_actions"]
-        if isinstance(choice, str) and choice in legal and confidence is not None:
-            played = choice
-            source = "jev"
-        else:
-            played = math_choice
-            source = "math"
+        played, confidence, source = resolve_action(
+            state["legal_actions"],
+            action_result.answers.get("action"),
+            math_choice,
+        )
         answers = {
             "bluff_spot": prior.answers.get("bluff_spot"),
             "range_advantage": prior.answers.get("range_advantage"),
@@ -139,6 +136,8 @@ class JevAgent:
             confidence=confidence,
             cost_usd=prior.cost + action_result.cost,
             elapsed_seconds=prior.elapsed_seconds + action_result.elapsed_seconds,
+            input_tokens=_add_tokens(prior.input_tokens, action_result.input_tokens),
+            output_tokens=_add_tokens(prior.output_tokens, action_result.output_tokens),
         )
 
 
@@ -173,6 +172,8 @@ def decision_record(
     cost_usd: float,
     elapsed_seconds: float,
     error: str | None = None,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
 ) -> dict:
     record = {
         "seat": seat,
@@ -186,6 +187,8 @@ def decision_record(
         "confidence": confidence,
         "cost_usd": cost_usd,
         "elapsed_seconds": elapsed_seconds,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
     }
     if error is not None:
         record["error"] = error
@@ -244,6 +247,24 @@ def build_action_questions(persona: Persona, legal_actions: list[str]) -> dict:
             "criteria": persona.action_criteria(legal_actions),
         },
     }
+
+
+def _add_tokens(left: int | None, right: int | None) -> int | None:
+    if left is None and right is None:
+        return None
+    return (left or 0) + (right or 0)
+
+
+def resolve_action(
+    legal_actions: list[str],
+    action_answer: object,
+    math_choice: str,
+) -> tuple[str, float | None, str]:
+    """Play Jev when the choice is legal and confidence is in range. Otherwise math."""
+    choice, confidence = _choice_and_confidence(action_answer)
+    if isinstance(choice, str) and choice in legal_actions and confidence is not None:
+        return choice, confidence, "jev"
+    return math_choice, confidence, "math"
 
 
 def _choice_and_confidence(action: object) -> tuple[str | None, float | None]:

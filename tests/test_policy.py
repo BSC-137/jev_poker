@@ -187,6 +187,8 @@ def test_confident_legal_action_comes_from_jev():
         "confidence",
         "cost_usd",
         "elapsed_seconds",
+        "input_tokens",
+        "output_tokens",
     }
     assert len(fake.questions) == 2
     assert record["cost_usd"] == fake.cost * 2
@@ -238,7 +240,7 @@ def test_request_body_pins_model_and_question_names(monkeypatch):
     assert opener.timeouts == [20, 20]
     first = json.loads(opener.requests[0].data.decode())
     second = json.loads(opener.requests[1].data.decode())
-    assert first["model"] == second["model"] == "typesafe/jev-1.13" == MODEL_ID
+    assert first["model"] == second["model"] == "jev-latest" == MODEL_ID
     assert set(first["questions"]) == {"bluff_spot", "range_advantage"}
     assert "action" not in first["questions"]
     assert first["questions"]["bluff_spot"]["type"] == "noul"

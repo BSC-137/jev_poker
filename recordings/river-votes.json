@@ -1,0 +1,114 @@
+{
+  "hand_number": 2,
+  "street": "river",
+  "hole_cards": [
+    "2h",
+    "2c"
+  ],
+  "board": [
+    "Ks",
+    "As",
+    "Jd",
+    "4s",
+    "5d"
+  ],
+  "pot": 320,
+  "legal_actions": [
+    "check",
+    "raise_half_pot",
+    "raise_pot",
+    "all_in"
+  ],
+  "personas": [
+    {
+      "id": "rock",
+      "display_name": "Rock",
+      "color": "#94a3b8",
+      "action": "check",
+      "confidence": 0.93,
+      "probabilities": {
+        "check": 0.95,
+        "raise_half_pot": 0.03,
+        "raise_pot": 0.01,
+        "all_in": 0.01
+      },
+      "bluff": 0.22,
+      "range_score": 0.67,
+      "math_action": "check"
+    },
+    {
+      "id": "shark",
+      "display_name": "Shark",
+      "color": "#14b8a6",
+      "action": "check",
+      "confidence": 0.61,
+      "probabilities": {
+        "check": 0.71,
+        "raise_half_pot": 0.25,
+        "raise_pot": 0.02,
+        "all_in": 0.02
+      },
+      "bluff": 0.2,
+      "range_score": 0.69,
+      "math_action": "check"
+    },
+    {
+      "id": "caller",
+      "display_name": "Caller",
+      "color": "#38bdf8",
+      "action": "check",
+      "confidence": 0.84,
+      "probabilities": {
+        "check": 0.88,
+        "raise_half_pot": 0.08,
+        "raise_pot": 0.03,
+        "all_in": 0.01
+      },
+      "bluff": 0.24,
+      "range_score": 0.78,
+      "math_action": "check"
+    },
+    {
+      "id": "maniac",
+      "display_name": "Maniac",
+      "color": "#f43f5e",
+      "action": "raise_half_pot",
+      "confidence": 0.2,
+      "probabilities": {
+        "check": 0.22,
+        "raise_half_pot": 0.4,
+        "raise_pot": 0.2,
+        "all_in": 0.18
+      },
+      "bluff": 0.44,
+      "range_score": 0.7,
+      "math_action": "check"
+    }
+  ],
+  "maniac_bluff": [
+    {
+      "bluff_spot": 0.1,
+      "action": "check",
+      "confidence": 0.59,
+      "probabilities": {
+        "check": 0.69,
+        "raise_half_pot": 0.15,
+        "raise_pot": 0.09,
+        "all_in": 0.07
+      },
+      "range_score": 0.7
+    },
+    {
+      "bluff_spot": 0.9,
+      "action": "raise_half_pot",
+      "confidence": 0.19,
+      "probabilities": {
+        "check": 0.02,
+        "raise_half_pot": 0.39,
+        "raise_pot": 0.3,
+        "all_in": 0.29
+      },
+      "range_score": 0.7
+    }
+  ]
+}

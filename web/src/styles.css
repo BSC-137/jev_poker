@@ -413,6 +413,69 @@ input[type="number"] {
   margin: 4px 0;
 }
 
+.votes {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px 24px 32px;
+}
+
+.votes h1 {
+  margin: 0 0 14px;
+  font-family: Georgia, serif;
+  font-weight: 500;
+}
+
+.votes-spot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  align-items: end;
+  margin-bottom: 18px;
+}
+
+.votes-wait {
+  padding: 28px;
+}
+
+.vote-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.vote-col {
+  background: rgba(12, 18, 15, 0.92);
+  border-radius: 14px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 2px var(--persona, #94a3b8);
+}
+
+.vote-col h2,
+.vote-col h3 {
+  font-family: Georgia, serif;
+  font-weight: 500;
+}
+
+.vote-col h2 {
+  margin: 0 0 8px;
+}
+
+.vote-col h3 {
+  margin: 12px 0 6px;
+  font-size: 0.85rem;
+}
+
+.vote-col p {
+  margin: 0 0 6px;
+}
+
+.bluff-bars {
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px solid #2a3b32;
+}
+
 @media (max-width: 980px) {
   .layout,
   .bottom,

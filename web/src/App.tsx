@@ -121,6 +121,7 @@ export function App() {
         hands: Number(hands),
         seed: Number(seed),
         pause_between_hands: pauseRef.current,
+        pace_seconds: 4,
       }),
     });
     if (!response.ok) {

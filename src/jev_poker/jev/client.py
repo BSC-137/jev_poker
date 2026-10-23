@@ -1,4 +1,4 @@
-"""HTTP client for the OpenRouter Decisions API.
+"""HTTP client for the TypeSafe systemone API.
 
 Jev answers every question in one request in parallel. Questions do not
 see each other, and the response is typed probabilities, not text.
@@ -14,8 +14,8 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Callable
 
-DECISIONS_URL = "https://openrouter.ai/api/alpha/decisions"
-MODEL_ID = "typesafe/jev-1.13"
+DECISIONS_URL = "https://api.typesafe.ai/v1/systemone"
+MODEL_ID = "jev-latest"
 TIMEOUT_SECONDS = 20
 _MAX_RETRIES = 2
 _RETRY_BACKOFF_SECONDS = (0.5, 1.0)
@@ -26,7 +26,7 @@ class JevError(Exception):
 
 
 class JevResponseError(JevError):
-    """``answers.action`` is missing or malformed, or ``usage.cost`` is unusable."""
+    """``answers.action`` is missing or malformed, or usage cannot be read."""
 
 
 class JevTransportError(JevError):
@@ -47,6 +47,8 @@ class JevResult:
     answers: dict
     cost: float
     elapsed_seconds: float = 0.0
+    input_tokens: int | None = None
+    output_tokens: int | None = None
 
 
 class JevClient:
@@ -78,7 +80,13 @@ class JevClient:
         if status < 200 or status >= 300:
             raise JevTransportError(status, _snippet(raw))
         parsed = _parse_result(raw, require_action=_action_required(questions))
-        return JevResult(answers=parsed.answers, cost=parsed.cost, elapsed_seconds=elapsed)
+        return JevResult(
+            answers=parsed.answers,
+            cost=parsed.cost,
+            elapsed_seconds=elapsed,
+            input_tokens=parsed.input_tokens,
+            output_tokens=parsed.output_tokens,
+        )
 
     def _send_with_retries(self, body: dict) -> tuple[int, bytes]:
         attempt = 0
@@ -134,13 +142,38 @@ def _parse_result(raw: bytes, *, require_action: bool = True) -> JevResult:
         raise JevResponseError("missing answers.action" if require_action else "missing answers")
     if require_action:
         _require_action(answers["action"])
-    usage = payload.get("usage")
-    if not isinstance(usage, dict) or "cost" not in usage:
+    cost, input_tokens, output_tokens = _usage(payload.get("usage"))
+    return JevResult(
+        answers=answers,
+        cost=cost,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+
+
+def _usage(usage: object) -> tuple[float, int | None, int | None]:
+    """Read cost, or zero when the body bills tokens and omits cost."""
+    if not isinstance(usage, dict):
         raise JevResponseError("missing usage.cost")
+    input_tokens = usage.get("input_tokens")
+    output_tokens = usage.get("output_tokens")
+    tokens = _token_pair(input_tokens, output_tokens)
+    if "cost" not in usage:
+        if tokens is None:
+            raise JevResponseError("missing usage.cost")
+        return 0.0, tokens[0], tokens[1]
     cost = usage["cost"]
     if not _real_number(cost):
         raise JevResponseError("missing usage.cost")
-    return JevResult(answers=answers, cost=float(cost))
+    if tokens is None:
+        return float(cost), None, None
+    return float(cost), tokens[0], tokens[1]
+
+
+def _token_pair(input_tokens: object, output_tokens: object) -> tuple[int, int] | None:
+    if not _real_number(input_tokens) or not _real_number(output_tokens):
+        return None
+    return int(input_tokens), int(output_tokens)
 
 
 def _require_action(action: object) -> None:

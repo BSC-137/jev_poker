@@ -2,6 +2,7 @@
 
 import json
 import threading
+import time
 
 from fastapi.testclient import TestClient
 
@@ -129,3 +130,18 @@ def test_pause_between_hands_waits_for_resume(tmp_path):
         lines = [line for line in log.read_text(encoding="utf-8").splitlines() if line.strip()]
         assert len(lines) == 2
         assert sum(json.loads(lines[-1])["stacks"]) == 8000
+
+
+def test_pace_zero_finishes_without_a_long_sleep(tmp_path):
+    app = create_app(client=CheckCall(), runs_root=tmp_path, iterations=2)
+    with TestClient(app) as client:
+        started = time.perf_counter()
+        response = client.post(
+            "/api/tournament",
+            json={"hands": 1, "seed": 1, "pace_seconds": 0, "pause_between_hands": False},
+        )
+        assert response.status_code == 202
+        assert app.state.manager._thread.join(timeout=5) is None
+        elapsed = time.perf_counter() - started
+    assert elapsed < 5
+    assert not app.state.manager.active

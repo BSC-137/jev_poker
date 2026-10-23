@@ -7,6 +7,7 @@ import json
 import os
 import re
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -35,6 +36,7 @@ class TournamentRequest(BaseModel):
     hands: int = Field(ge=1, le=5000)
     seed: int
     pause_between_hands: bool = False
+    pace_seconds: float = Field(default=0, ge=0, le=8)
 
 
 class PauseRequest(BaseModel):
@@ -60,13 +62,14 @@ class _RunManager:
         self.events: list[dict] = []
         self.generation = 0
         self.pause_between = False
+        self.pace_seconds = 0.0
         self._resume = threading.Event()
         self._resume.set()
         self._thread: threading.Thread | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._waiters: list[asyncio.Event] = []
 
-    def start(self, hands: int, seed: int, pause_between_hands: bool, client=None) -> str:
+    def start(self, hands: int, seed: int, pause_between_hands: bool, pace_seconds: float = 0, client=None) -> str:
         with self._cond:
             if self.active:
                 raise RuntimeError("a tournament is already running")
@@ -75,6 +78,7 @@ class _RunManager:
             self.active = True
             self.waiting = False
             self.pause_between = pause_between_hands
+            self.pace_seconds = pace_seconds
             self._resume.set()
             run_id = _fresh_id(self.runs_root)
             run_dir = self.runs_root / run_id
@@ -108,6 +112,12 @@ class _RunManager:
             self.events.append(stamped)
             self._cond.notify_all()
         self._signal()
+        if self.pace_seconds <= 0:
+            return
+        if event.get("type") == "decision":
+            time.sleep(self.pace_seconds)
+        elif event.get("type") == "finished":
+            time.sleep(6)
 
     def wait_between_hands(self) -> None:
         if not self.pause_between:
@@ -228,10 +238,17 @@ def create_app(
     def health() -> dict:
         return {"status": "ok", "jev": _jev_status()}
 
+    @app.get("/api/votes")
+    def read_votes() -> dict:
+        path = _votes_file()
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="river votes are not recorded")
+        return json.loads(path.read_text(encoding="utf-8"))
+
     @app.post("/api/tournament", status_code=202)
     def start_tournament(body: TournamentRequest) -> dict:
         try:
-            run_id = manager.start(body.hands, body.seed, body.pause_between_hands)
+            run_id = manager.start(body.hands, body.seed, body.pause_between_hands, body.pace_seconds)
         except RuntimeError as exc:
             raise HTTPException(status_code=409, detail="a tournament is already running") from exc
         return {"id": run_id, "hands": body.hands, "seed": body.seed}
@@ -316,6 +333,14 @@ def _count_lines(path: Path) -> int:
 
 def _sse(event: dict) -> str:
     return f"event: {event['type']}\ndata: {json.dumps(event)}\n\n"
+
+
+def _votes_file() -> Path:
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "pyproject.toml").is_file():
+            return parent / "recordings" / "river-votes.json"
+    return Path.cwd() / "recordings" / "river-votes.json"
 
 
 def _frontend_dist() -> Path:

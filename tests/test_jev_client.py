@@ -123,7 +123,7 @@ def test_posts_model_auth_and_returns_answers_and_cost():
     assert request.get_header("Content-type") == "application/json"
     assert opener.timeouts == [20]
     body = json.loads(request.data.decode())
-    assert body["model"] == MODEL_ID == "typesafe/jev-1.13"
+    assert body["model"] == MODEL_ID == "jev-latest"
     assert set(body["questions"]) == {"action"}
     assert body["state"]["persona"]["id"] == "shark"
     assert result.answers["action"]["choice"] == "call"
@@ -222,12 +222,14 @@ def test_action_is_optional_when_the_request_does_not_ask_for_it():
     assert result.elapsed_seconds >= 0
 
 
-def test_missing_cost_raises():
+def test_token_usage_without_cost_sets_cost_to_zero():
     payload = _ok()
     del payload["usage"]["cost"]
     client, _opener = _client([(200, payload)])
-    with pytest.raises(JevResponseError, match="usage.cost"):
-        client.submit({}, {})
+    result = client.submit({}, {})
+    assert result.cost == 0
+    assert result.input_tokens == 120
+    assert result.output_tokens == 8
 
 
 def test_non_json_success_raises():
