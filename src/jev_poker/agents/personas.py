@@ -71,15 +71,15 @@ ROCK = _persona(
     0.25,
     0.12,
     {
-        "fold": "to_call is greater than 0 and hero_equity_vs_continuing is below pot_odds plus a wide margin, or the board texture is monotone.",
-        "check": "to_call is 0 and hero_equity_vs_continuing is below 0.70, or spr is high on a connected board texture.",
-        "call": "to_call is greater than 0 and hero_equity_vs_continuing clears pot_odds by a wide margin while spr stays above 3.",
-        "raise_half_pot": "to_call is 0, hero_equity_vs_continuing is at least 0.70, and board texture connectedness is 0.",
-        "raise_pot": "hero_equity_vs_continuing is at least 0.80 and the board texture is dry or paired.",
-        "all_in": "spr is below 3, the remaining stack is short, and hero_equity_vs_continuing is at least 0.92.",
+        "fold": "Facing a bet, fold unless hero_equity_vs_continuing clearly beats pot_odds on a dry board_texture.",
+        "check": "Check when nothing is owed unless hero_equity_vs_continuing and prior_judgments.range_advantage_score are both strong.",
+        "call": "Call a bet only when hero_equity_vs_continuing clearly beats pot_odds on a dry board_texture.",
+        "raise_half_pot": "Raise only from strength when hero_equity_vs_continuing and prior_judgments.range_advantage_score are both strong.",
+        "raise_pot": "Raise only from strength when hero_equity_vs_continuing is dominant and prior_judgments.range_advantage_score is strong.",
+        "all_in": "All-in only when spr is short and hero_equity_vs_continuing is dominant.",
     },
-    "hero_equity_vs_continuing is below 0.5, the board texture is dry (connectedness 0 and not monotone), and an opponent fold_to_bet is high enough to bluff at a continuing fraction of 0.25.",
-    "hero_equity_vs_continuing is below 0.5 but the board texture is monotone, paired, or connected, or no opponent fold_to_bet supports a bluff at a continuing fraction of 0.25.",
+    "A bluff bet or raise is never aligned for this persona, even when fold_to_bet is high on a dry board_texture.",
+    "This persona does not bluff, so hero_equity_vs_continuing, pot_odds, spr, board_texture, and fold_to_bet leave a bluff unaligned.",
 )
 
 SHARK = _persona(
@@ -89,15 +89,15 @@ SHARK = _persona(
     0.40,
     0.04,
     {
-        "fold": "to_call is greater than 0 and hero_equity_vs_continuing is below pot_odds plus a small margin, with opponent fold_to_bet too low to bluff.",
-        "check": "to_call is 0 and hero_equity_vs_continuing is below 0.55 on a wet board texture.",
-        "call": "to_call is greater than 0 and hero_equity_vs_continuing meets pot_odds plus a small margin.",
-        "raise_half_pot": "to_call is 0 and hero_equity_vs_continuing is at least 0.55, or the board texture is dry and an opponent fold_to_bet is high.",
-        "raise_pot": "hero_equity_vs_continuing is at least 0.80, or spr is moderate and the board texture favors a value bet.",
-        "all_in": "spr is below 3 and hero_equity_vs_continuing is at least 0.92.",
+        "fold": "Fold when facing a bet, hero_equity_vs_continuing loses to pot_odds, and prior_judgments.bluff_spot is low.",
+        "check": "Check when nothing is owed unless prior_judgments.range_advantage_score is high enough to value-bet.",
+        "call": "Call when facing a bet and hero_equity_vs_continuing meets pot_odds without a high prior_judgments.range_advantage_score or a high prior_judgments.bluff_spot.",
+        "raise_half_pot": "Value-bet when prior_judgments.range_advantage_score is high, or bluff-raise when prior_judgments.bluff_spot is high and fold_to_bet is high.",
+        "raise_pot": "Value-bet when prior_judgments.range_advantage_score is high and hero_equity_vs_continuing is strong.",
+        "all_in": "All-in when spr is short and hero_equity_vs_continuing is dominant, or when prior_judgments.bluff_spot and fold_to_bet are both high.",
     },
-    "hero_equity_vs_continuing is below 0.5, the board texture is dry or an opponent fold_to_bet is high, and a bluff fits a continuing fraction of 0.40.",
-    "hero_equity_vs_continuing is below 0.5 and the board texture is wet or monotone, so a bluff does not fit a continuing fraction of 0.40.",
+    "A bluff bet or raise is aligned when fold_to_bet is high, especially on a dry board_texture, even when hero_equity_vs_continuing loses to pot_odds.",
+    "A bluff is not aligned when fold_to_bet is low or board_texture is monotone while hero_equity_vs_continuing loses to pot_odds.",
 )
 
 CALLER = _persona(
@@ -107,15 +107,15 @@ CALLER = _persona(
     0.55,
     0.00,
     {
-        "fold": "to_call is greater than 0 and hero_equity_vs_continuing is below pot_odds.",
-        "check": "to_call is 0 and hero_equity_vs_continuing is below 0.80.",
-        "call": "to_call is greater than 0 and hero_equity_vs_continuing is at least pot_odds, including a close price.",
-        "raise_half_pot": "to_call is 0, hero_equity_vs_continuing is at least 0.70, and the board texture is dry.",
-        "raise_pot": "hero_equity_vs_continuing is at least 0.80 and spr is not already tiny.",
-        "all_in": "spr is below 3 and hero_equity_vs_continuing is at least 0.92.",
+        "fold": "Fold when facing a bet and hero_equity_vs_continuing fails to meet pot_odds.",
+        "check": "Check when nothing is owed unless hero_equity_vs_continuing and prior_judgments.range_advantage_score are both strong.",
+        "call": "Call when hero_equity_vs_continuing meets pot_odds, including a close price.",
+        "raise_half_pot": "Raise only rarely when hero_equity_vs_continuing and prior_judgments.range_advantage_score are both strong.",
+        "raise_pot": "Raise only rarely when hero_equity_vs_continuing is dominant and prior_judgments.range_advantage_score is strong.",
+        "all_in": "All-in only when spr is short and hero_equity_vs_continuing is dominant.",
     },
-    "hero_equity_vs_continuing is below 0.5, the board texture is dry, and an opponent fold_to_bet is extremely high for a continuing fraction of 0.55.",
-    "hero_equity_vs_continuing is below 0.5 and the board texture is not extremely dry, so a bluff does not fit a continuing fraction of 0.55.",
+    "A bluff is never aligned for this persona, even when fold_to_bet is high on a dry board_texture.",
+    "This persona does not bluff, so hero_equity_vs_continuing, pot_odds, spr, board_texture, and fold_to_bet do not justify a bluff.",
 )
 
 MANIAC = _persona(
@@ -125,15 +125,15 @@ MANIAC = _persona(
     0.70,
     -0.06,
     {
-        "fold": "to_call is greater than 0, spr is high, hero_equity_vs_continuing is far below pot_odds, and the board texture is monotone with no fold equity.",
-        "check": "to_call is 0, hero_equity_vs_continuing is very low, and the board texture is monotone.",
-        "call": "to_call is greater than 0 and hero_equity_vs_continuing is within a small deficit of pot_odds.",
-        "raise_half_pot": "to_call is 0, or an opponent fold_to_bet is elevated, even when hero_equity_vs_continuing is below 0.55.",
-        "raise_pot": "the board texture is dry or an opponent aggression_factor is low, even at a moderate hero_equity_vs_continuing.",
-        "all_in": "spr is below 3, or the stack is short relative to the pot on a dry board texture.",
+        "fold": "Fold only when facing a bet, hero_equity_vs_continuing is far behind pot_odds, board_texture is monotone, and prior_judgments.bluff_spot is low.",
+        "check": "Check only when nothing is owed, board_texture is monotone, hero_equity_vs_continuing is weak, and prior_judgments.bluff_spot is low.",
+        "call": "Call when facing a bet and hero_equity_vs_continuing is close to pot_odds.",
+        "raise_half_pot": "Raise when prior_judgments.bluff_spot is high or fold_to_bet is high, even when hero_equity_vs_continuing is weak, especially on a dry board_texture.",
+        "raise_pot": "Raise when prior_judgments.bluff_spot is high or fold_to_bet is high on a dry board_texture, even when hero_equity_vs_continuing is weak.",
+        "all_in": "All-in when prior_judgments.bluff_spot is high or fold_to_bet is high, even when hero_equity_vs_continuing is weak, especially when spr is short on a dry board_texture.",
     },
-    "hero_equity_vs_continuing is below 0.5 and the board texture still offers fold equity, which fits a continuing fraction of 0.70.",
-    "hero_equity_vs_continuing is below 0.5 and the board texture is monotone with no opponent fold_to_bet, so a bluff does not fit a continuing fraction of 0.70.",
+    "A bluff is aligned when fold_to_bet is high or board_texture is dry, even when hero_equity_vs_continuing is weak against pot_odds.",
+    "A bluff is not aligned when hero_equity_vs_continuing is far behind pot_odds, board_texture is monotone, and fold_to_bet is low.",
 )
 
 PERSONAS = (ROCK, SHARK, CALLER, MANIAC)

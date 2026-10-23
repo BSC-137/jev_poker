@@ -17,6 +17,33 @@ python -m venv .venv
 pip install -e ".[dev]"
 ```
 
+## Run
+
+`OPENROUTER_API_KEY` lives in `.env` at the repository root. Importing `jev_poker` loads that file and leaves variables that are already set in the process unchanged.
+
+A 20-hand table is a demo, not a poker ranking.
+
+```powershell
+python -m jev_poker.sim --hands 20 --seed 1
+python -m jev_poker.sim --hands 20 --seed 1 --math-only
+python -m jev_poker.sim.report runs/<run-id>/hands.jsonl
+python -m jev_poker.sim.report runs/<run-id>/hands.jsonl runs/<math-run-id>/hands.jsonl
+```
+
+The first command asks Jev to play. `--math-only` never calls the network. The report command only reads logs.
+
+For a 5-hand recording with pause on, start the API and the Vite app, then open http://127.0.0.1:5173, set hands to 5, turn pause between hands on, and start.
+
+```powershell
+uvicorn jev_poker.web.app:app --reload
+```
+
+```powershell
+cd web
+npm install
+npm run dev
+```
+
 ## Tests
 
 ```powershell

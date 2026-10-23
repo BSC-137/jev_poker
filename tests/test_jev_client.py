@@ -199,6 +199,29 @@ def test_missing_or_malformed_action_raises(payload):
         client.submit({}, {})
 
 
+def test_action_is_optional_when_the_request_does_not_ask_for_it():
+    payload = {
+        "answers": {
+            "bluff_spot": {"type": "noul", "noul": 0.4},
+            "range_advantage": {"type": "score", "score": 3, "confidence": 0.5},
+        },
+        "usage": {"cost": 0.01},
+    }
+    client, opener = _client([(200, payload)])
+    result = client.submit(
+        {"street": "flop"},
+        {
+            "bluff_spot": {"type": "noul", "instructions": "Bluff?"},
+            "range_advantage": {"type": "score", "instructions": "Range?"},
+        },
+    )
+    assert len(opener.requests) == 1
+    assert "action" not in result.answers
+    assert result.answers["bluff_spot"]["noul"] == 0.4
+    assert result.cost == 0.01
+    assert result.elapsed_seconds >= 0
+
+
 def test_missing_cost_raises():
     payload = _ok()
     del payload["usage"]["cost"]

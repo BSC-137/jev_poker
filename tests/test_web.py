@@ -54,10 +54,13 @@ def _events(client: TestClient) -> list[dict]:
     return found
 
 
-def test_health_and_dev_server_message(tmp_path):
+def test_health_and_dev_server_message(tmp_path, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     app = create_app(client=CheckCall(), runs_root=tmp_path, iterations=2)
     with TestClient(app) as client:
-        assert client.get("/api/health").json() == {"status": "ok"}
+        assert client.get("/api/health").json() == {"status": "ok", "jev": "offline"}
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+        assert client.get("/api/health").json() == {"status": "ok", "jev": "configured"}
         page = client.get("/")
         assert page.status_code == 200
         assert "The UI dev server is on port 5173." in page.text

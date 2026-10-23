@@ -120,9 +120,12 @@ export function DecisionPanel({
             {player.display_name}
           </strong>
           <p>
-            {actionWord(decision.action)} on the {decision.street}
+            Played: {actionWord(decision.action)} on the {decision.street}
           </p>
           <span className="source">{decision.source}</span>
+          {decision.math_action && decision.math_action !== decision.action ? (
+            <p className="equity-rule">Equity rule: {decision.math_action}</p>
+          ) : null}
           <h3>Action</h3>
           <Bars rows={actionRows} />
           <h3>Bluff spot</h3>

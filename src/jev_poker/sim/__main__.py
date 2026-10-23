@@ -1,4 +1,4 @@
-"""CLI: python -m jev_poker.sim --hands 10 --seed 1"""
+"""CLI: python -m jev_poker.sim --hands 20 --seed 1"""
 
 from __future__ import annotations
 
@@ -11,6 +11,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Play rock, shark, caller, and maniac for a fixed number of hands.")
     parser.add_argument("--hands", type=int, default=10, help="maximum hands to play (default: 10)")
     parser.add_argument("--seed", type=int, default=1, help="shuffle seed for the tournament (default: 1)")
+    parser.add_argument(
+        "--math-only",
+        action="store_true",
+        help="play the equity rule and do not call Jev",
+    )
     args = parser.parse_args(argv)
     if args.hands < 1:
         parser.error("--hands must be at least 1")
@@ -19,7 +24,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> None:
     args = parse_args(argv)
-    result = play_tournament(args.hands, args.seed)
+    result = play_tournament(args.hands, args.seed, math_only=args.math_only)
     print(format_summary(result["summary"]))
 
 

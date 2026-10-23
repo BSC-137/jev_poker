@@ -50,6 +50,7 @@ export type Decision = {
   persona_id: string;
   street: string;
   action: string;
+  math_action?: string;
   source: Source;
   cost_usd: number;
   answers: Answers;

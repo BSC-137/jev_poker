@@ -291,6 +291,11 @@ input[type="number"] {
   text-transform: uppercase;
 }
 
+.equity-rule {
+  margin: 0 0 10px;
+  color: #d7b56d;
+}
+
 .bars {
   display: grid;
   gap: 6px;

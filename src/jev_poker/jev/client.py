@@ -46,6 +46,7 @@ class JevResult:
 
     answers: dict
     cost: float
+    elapsed_seconds: float = 0.0
 
 
 class JevClient:
@@ -71,10 +72,13 @@ class JevClient:
 
     def submit(self, state: dict, questions: dict) -> JevResult:
         body = {"model": MODEL_ID, "state": state, "questions": questions}
+        started = time.perf_counter()
         status, raw = self._send_with_retries(body)
+        elapsed = time.perf_counter() - started
         if status < 200 or status >= 300:
             raise JevTransportError(status, _snippet(raw))
-        return _parse_result(raw)
+        parsed = _parse_result(raw, require_action=_action_required(questions))
+        return JevResult(answers=parsed.answers, cost=parsed.cost, elapsed_seconds=elapsed)
 
     def _send_with_retries(self, body: dict) -> tuple[int, bytes]:
         attempt = 0
@@ -107,17 +111,29 @@ class JevClient:
             raise JevTransportError(0, str(exc.reason)) from exc
 
 
-def _parse_result(raw: bytes) -> JevResult:
+def _action_required(questions: dict) -> bool:
+    """Historical callers omit questions and still require ``answers.action``.
+
+    A request that asks other questions and not ``action`` (the prior-judgment
+    call) accepts a payload without that key.
+    """
+    if not questions:
+        return True
+    return "action" in questions
+
+
+def _parse_result(raw: bytes, *, require_action: bool = True) -> JevResult:
     try:
         payload = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise JevResponseError("decisions response is not JSON") from exc
     if not isinstance(payload, dict):
-        raise JevResponseError("missing answers.action")
+        raise JevResponseError("missing answers.action" if require_action else "missing answers")
     answers = payload.get("answers")
-    if not isinstance(answers, dict) or "action" not in answers:
-        raise JevResponseError("missing answers.action")
-    _require_action(answers["action"])
+    if not isinstance(answers, dict) or (require_action and "action" not in answers):
+        raise JevResponseError("missing answers.action" if require_action else "missing answers")
+    if require_action:
+        _require_action(answers["action"])
     usage = payload.get("usage")
     if not isinstance(usage, dict) or "cost" not in usage:
         raise JevResponseError("missing usage.cost")

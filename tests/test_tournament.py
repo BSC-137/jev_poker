@@ -85,7 +85,7 @@ def test_three_hands_conserve_chips_and_log_legal_actions(tmp_path):
     summary = result["summary"]
     assert summary["hands_played"] == 3
     assert summary["stacks"] == hands[-1]["stacks"]
-    assert summary["decisions"]["jev"] == client.calls
+    assert summary["decisions"]["jev"] * 2 == client.calls
     assert summary["decisions"]["math"] == 0
     assert summary["decisions"]["math_error"] == 0
     assert summary["mean_jev_confidence"] == 0.9
@@ -102,6 +102,9 @@ def test_client_exception_uses_math_error_and_finishes(tmp_path):
     assert {action["source"] for action in hand["actions"]} == {"math_error"}
     assert all(action["answers"] is None for action in hand["actions"])
     assert all(action["cost_usd"] == 0.0 for action in hand["actions"])
+    assert all(action["math_action"] == action["action"] for action in hand["actions"])
+    assert all(action["error"] for action in hand["actions"])
+    assert all(action["error"].startswith("RuntimeError: jev unavailable") for action in hand["actions"])
     assert sum(hand["stacks"]) == 8000
     assert hand["pot_results"]
     assert result["summary"]["decisions"]["math_error"] == len(hand["actions"])
@@ -120,4 +123,25 @@ def test_cli_defaults_to_ten_hands():
     args = parse_args(["--seed", "1"])
     assert args.hands == 10
     assert args.seed == 1
+    assert args.math_only is False
+    flagged = parse_args(["--hands", "20", "--seed", "1", "--math-only"])
+    assert flagged.hands == 20
+    assert flagged.seed == 1
+    assert flagged.math_only is True
     assert PERSONA_IDS == ("rock", "shark", "caller", "maniac")
+
+
+def test_math_only_never_constructs_jev_client(tmp_path, monkeypatch):
+    def explode(*_args, **_kwargs):
+        raise AssertionError("JevClient must not be constructed")
+
+    monkeypatch.setattr("jev_poker.agents.jev_agent.JevClient", explode)
+    result = play_tournament(1, 1, math_only=True, iterations=8, runs_root=tmp_path)
+    actions = result["hands"][0]["actions"]
+    assert actions
+    assert {row["source"] for row in actions} == {"math"}
+    assert all(row["answers"] is None for row in actions)
+    assert all(row["cost_usd"] == 0 for row in actions)
+    assert all(row["elapsed_seconds"] == 0 for row in actions)
+    assert all(row["math_action"] == row["action"] for row in actions)
+    assert all(row["confidence"] is None for row in actions)

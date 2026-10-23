@@ -8,9 +8,8 @@ import random
 from datetime import datetime
 from pathlib import Path
 
-from jev_poker.agents.jev_agent import JevAgent
+from jev_poker.agents.jev_agent import JevAgent, decision_record, format_error, math_action
 from jev_poker.agents.personas import PERSONAS
-from jev_poker.agents.policy import board_bonus_from_texture, decide as select_action
 from jev_poker.engine.game import SEATS, STARTING_STACK, Game
 from jev_poker.math.state import decision_state
 
@@ -28,10 +27,11 @@ def play_hand(
     agents: list[JevAgent] | None = None,
     iterations: int = 300,
     rng: random.Random | None = None,
+    math_only: bool = False,
 ) -> dict:
     """Play one hand. ``seed`` labels the hand and builds a table when ``game`` is omitted."""
     table = Game(seed=seed) if game is None else game
-    seats = agents if agents is not None else _agents(client)
+    seats = agents if agents is not None else _agents(client, math_only=math_only)
     stream = rng if rng is not None else random.Random(seed)
     return _play_hand(table, seats, seed=seed, iterations=iterations, rng=stream)
 
@@ -42,6 +42,7 @@ def play_tournament(
     *,
     client=None,
     iterations: int = 300,
+    math_only: bool = False,
     runs_root: Path | str = "runs",
     run_dir: Path | str | None = None,
     on_event=None,
@@ -56,7 +57,7 @@ def play_tournament(
     if hands < 1:
         raise ValueError("hands must be at least 1")
     table = Game(seed=seed)
-    agents = _agents(client)
+    agents = _agents(client, math_only=math_only)
     rng = random.Random(seed)
     path = _log_path(Path(runs_root), Path(run_dir) if run_dir is not None else None)
     played: list[dict] = []
@@ -108,7 +109,9 @@ def format_summary(summary: dict) -> str:
     )
 
 
-def _agents(client) -> list[JevAgent]:
+def _agents(client, *, math_only: bool = False) -> list[JevAgent]:
+    if math_only:
+        return [JevAgent(persona, math_only=True) for persona in SEAT_PERSONAS]
     return [JevAgent(persona, client) for persona in SEAT_PERSONAS]
 
 
@@ -222,11 +225,18 @@ def _log_path(runs_root: Path, run_dir: Path | None) -> Path:
 def _decide(agent: JevAgent, game: Game, seat: int, iterations: int, rng: random.Random) -> dict:
     try:
         return agent.decide(game, seat, iterations=iterations, rng=rng)
-    except Exception:
-        return _math_error(agent, game, seat, iterations, rng)
+    except Exception as exc:
+        return _math_error(agent, game, seat, iterations, rng, format_error(exc))
 
 
-def _math_error(agent: JevAgent, game: Game, seat: int, iterations: int, rng: random.Random) -> dict:
+def _math_error(
+    agent: JevAgent,
+    game: Game,
+    seat: int,
+    iterations: int,
+    rng: random.Random,
+    error: str,
+) -> dict:
     state = decision_state(
         game,
         seat,
@@ -235,28 +245,21 @@ def _math_error(agent: JevAgent, game: Game, seat: int, iterations: int, rng: ra
         rng=rng,
     )
     state["persona"] = agent.persona.to_state()
-    chosen = select_action(
-        state["legal_actions"],
-        state["pot_odds"],
-        state["hero_equity_vs_continuing"],
-        agent.persona.fallback_equity_margin,
-        None,
-        None,
-        to_call=state["to_call"],
-        spr=state["spr"],
+    chosen = math_action(agent.persona, state)
+    return decision_record(
+        seat=seat,
         persona_id=agent.persona.id,
-        board_bonus=board_bonus_from_texture(state["board_texture"]),
+        street=state["street"],
+        state=state,
+        answers=None,
+        action=chosen,
+        math_action=chosen,
+        source="math_error",
+        confidence=None,
+        cost_usd=0.0,
+        elapsed_seconds=0.0,
+        error=error,
     )
-    return {
-        "seat": seat,
-        "persona_id": agent.persona.id,
-        "street": state["street"],
-        "state": state,
-        "answers": None,
-        "action": chosen["action"],
-        "source": "math_error",
-        "cost_usd": 0.0,
-    }
 
 
 def _public_decision(record: dict) -> dict:

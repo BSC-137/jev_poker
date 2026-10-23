@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import threading
 from datetime import datetime
@@ -19,7 +20,7 @@ from jev_poker.jev.client import JevClient, JevError, JevResult
 from jev_poker.sim.tournament import play_tournament
 
 _RUN_ID = re.compile(r"[A-Za-z0-9_-]+")
-_WEB_ITERATIONS = 24
+_WEB_ITERATIONS = 150
 _DEV_MESSAGE = """<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><title>Jev Poker</title></head>
@@ -225,7 +226,7 @@ def create_app(
 
     @app.get("/api/health")
     def health() -> dict:
-        return {"status": "ok"}
+        return {"status": "ok", "jev": _jev_status()}
 
     @app.post("/api/tournament", status_code=202)
     def start_tournament(body: TournamentRequest) -> dict:
@@ -274,6 +275,13 @@ def create_app(
             return HTMLResponse(_DEV_MESSAGE)
 
     return app
+
+
+def _jev_status() -> str:
+    key = os.environ.get("OPENROUTER_API_KEY", "")
+    if isinstance(key, str) and key.strip():
+        return "configured"
+    return "offline"
 
 
 def _default_client():
